@@ -20,8 +20,8 @@ func main() {
 	mux.HandleFunc("/stats", makeStatsHandler(limiter))
 	registerCatalogRoutes(mux, store)
 
-	log.Println("listening on :8080")
-	if err := http.ListenAndServe(":8080", middleware.Logger(mux)); err != nil {
+	log.Println("listening on :3000")
+	if err := http.ListenAndServe(":3000", middleware.Logger(mux)); err != nil {
 		log.Fatal(err)
 	}
 }

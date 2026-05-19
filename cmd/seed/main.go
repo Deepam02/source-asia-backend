@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	base    = "http://localhost:8080"
+	base    = "http://localhost:3000"
 	products = 1000
 	images  = 10
 	videos  = 2
