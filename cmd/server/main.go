@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/deepam02/source-asia-backend/internal/catalog"
+	"github.com/deepam02/source-asia-backend/internal/middleware"
 	"github.com/deepam02/source-asia-backend/internal/ratelimit"
 )
 
@@ -20,7 +21,7 @@ func main() {
 	registerCatalogRoutes(mux, store)
 
 	log.Println("listening on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", middleware.Logger(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
