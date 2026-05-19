@@ -15,19 +15,22 @@ var (
 )
 
 // Store is a concurrency-safe in-memory product catalog.
-// meta and media are intentionally separate structures.
+// meta, imageMedia, and videoMedia are intentionally separate structures so
+// that List can read only metadata without touching any media URLs.
 type Store struct {
-	mu    sync.RWMutex
-	meta  map[string]Product  // id → Product (no media)
-	media map[string][]string // id → ordered media URLs
-	order []string            // insertion order for stable List results
+	mu         sync.RWMutex
+	meta       map[string]Product  // id → Product (no media)
+	imageMedia map[string][]string // id → ordered image URLs
+	videoMedia map[string][]string // id → ordered video URLs
+	order      []string            // insertion order for stable List results
 }
 
 // New returns an empty, ready-to-use Store.
 func New() *Store {
 	return &Store{
-		meta:  make(map[string]Product),
-		media: make(map[string][]string),
+		meta:       make(map[string]Product),
+		imageMedia: make(map[string][]string),
+		videoMedia: make(map[string][]string),
 	}
 }
 
@@ -54,7 +57,8 @@ func (s *Store) Create(name, sku string) (Product, error) {
 		CreatedAt: time.Now().UTC(),
 	}
 	s.meta[p.ID] = p
-	s.media[p.ID] = nil
+	s.imageMedia[p.ID] = nil
+	s.videoMedia[p.ID] = nil
 	s.order = append(s.order, p.ID)
 	return p, nil
 }
@@ -84,7 +88,7 @@ func (s *Store) List(offset, limit int) []Product {
 	return out
 }
 
-// GetByID returns the full product including media URLs.
+// GetByID returns the full product including image and video URLs.
 // Returns ErrNotFound when the id is unknown.
 func (s *Store) GetByID(id string) (ProductWithMedia, error) {
 	s.mu.RLock()
@@ -95,18 +99,17 @@ func (s *Store) GetByID(id string) (ProductWithMedia, error) {
 		return ProductWithMedia{}, ErrNotFound
 	}
 
-	urls := s.media[id]
-	snapshot := make([]string, len(urls))
-	copy(snapshot, urls)
+	imgs := copyStrings(s.imageMedia[id])
+	vids := copyStrings(s.videoMedia[id])
 
-	return ProductWithMedia{Product: p, Media: snapshot}, nil
+	return ProductWithMedia{Product: p, ImageURLs: imgs, VideoURLs: vids}, nil
 }
 
-// AppendMedia adds one or more media URLs to an existing product.
+// AppendMedia appends image and/or video URLs to an existing product.
 // Returns ErrNotFound when the id is unknown.
-// Empty or duplicate URLs within the batch are silently skipped.
-func (s *Store) AppendMedia(id string, urls ...string) error {
-	if len(urls) == 0 {
+// Empty or duplicate URLs within each batch are silently skipped.
+func (s *Store) AppendMedia(id string, imageURLs, videoURLs []string) error {
+	if len(imageURLs) == 0 && len(videoURLs) == 0 {
 		return nil
 	}
 
@@ -117,20 +120,31 @@ func (s *Store) AppendMedia(id string, urls ...string) error {
 		return ErrNotFound
 	}
 
-	existing := make(map[string]struct{}, len(s.media[id]))
-	for _, u := range s.media[id] {
-		existing[u] = struct{}{}
-	}
+	s.imageMedia[id] = appendUnique(s.imageMedia[id], imageURLs)
+	s.videoMedia[id] = appendUnique(s.videoMedia[id], videoURLs)
+	return nil
+}
 
-	for _, u := range urls {
+func appendUnique(existing, incoming []string) []string {
+	seen := make(map[string]struct{}, len(existing))
+	for _, u := range existing {
+		seen[u] = struct{}{}
+	}
+	for _, u := range incoming {
 		if u == "" {
 			continue
 		}
-		if _, dup := existing[u]; dup {
+		if _, dup := seen[u]; dup {
 			continue
 		}
-		s.media[id] = append(s.media[id], u)
-		existing[u] = struct{}{}
+		existing = append(existing, u)
+		seen[u] = struct{}{}
 	}
-	return nil
+	return existing
+}
+
+func copyStrings(src []string) []string {
+	out := make([]string, len(src))
+	copy(out, src)
+	return out
 }

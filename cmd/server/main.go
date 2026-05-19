@@ -6,15 +6,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/deepam02/source-asia-backend/internal/catalog"
 	"github.com/deepam02/source-asia-backend/internal/ratelimit"
 )
 
 func main() {
 	limiter := ratelimit.New()
+	store := catalog.New()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/request", makeRequestHandler(limiter))
 	mux.HandleFunc("/stats", makeStatsHandler(limiter))
+	registerCatalogRoutes(mux, store)
 
 	log.Println("listening on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
@@ -23,9 +26,11 @@ func main() {
 }
 
 // requestBody is the expected JSON payload for POST /request.
+// Payload is json.RawMessage so it accepts any JSON value (object, array,
+// string, number, bool).
 type requestBody struct {
-	UserID  string `json:"user_id"`
-	Payload string `json:"payload"`
+	UserID  string          `json:"user_id"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 func makeRequestHandler(limiter *ratelimit.Limiter) http.HandlerFunc {
@@ -45,6 +50,10 @@ func makeRequestHandler(limiter *ratelimit.Limiter) http.HandlerFunc {
 
 		if strings.TrimSpace(body.UserID) == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "user_id is required"})
+			return
+		}
+		if len(body.Payload) == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "payload is required"})
 			return
 		}
 

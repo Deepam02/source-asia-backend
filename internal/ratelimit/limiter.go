@@ -66,7 +66,8 @@ func (l *Limiter) Allow(userID string) bool {
 	return true
 }
 
-// Stats returns the accepted and rejected counts for userID.
+// Stats returns the accepted count in the current rolling window and the
+// cumulative rejected count for userID.
 func (l *Limiter) Stats(userID string) Stats {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -75,5 +76,17 @@ func (l *Limiter) Stats(userID string) Stats {
 	if !ok {
 		return Stats{}
 	}
-	return Stats{Accepted: s.accepted, Rejected: s.rejected}
+
+	// Evict stale timestamps so Accepted reflects only the current window.
+	now := time.Now()
+	cutoff := now.Add(-windowSize)
+	valid := s.timestamps[:0]
+	for _, t := range s.timestamps {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+	s.timestamps = valid
+
+	return Stats{Accepted: int64(len(s.timestamps)), Rejected: s.rejected}
 }
