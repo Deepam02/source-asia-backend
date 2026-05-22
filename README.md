@@ -25,7 +25,7 @@ go run ./cmd/seed                  # Go
 docker compose exec server ./seed  # Docker
 ```
 
-This seeds 1,000 products (10 images, 2 videos each), benchmarks `GET /products?limit=20`, then fires 7 `/request` calls to verify the 429 cutoff.
+This seeds 1,000 products.
 
 ## Architecture and Design Decisions
 
