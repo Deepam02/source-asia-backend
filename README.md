@@ -1,6 +1,6 @@
 # Source Asia Backend
 
-Go HTTP service (stdlib + `github.com/google/uuid`): a rolling-window rate limiter and an in-memory product catalog. Listens on `:3000`.
+Go HTTP service: a rolling-window rate limiter and an in-memory product catalog. Listens on `:3000`.
 
 ## Quick Start
 
@@ -33,9 +33,8 @@ This seeds 1,000 products (10 images, 2 videos each), benchmarks `GET /products?
 
 **Part 2: Product catalog.** Three separate maps (`meta`, `imageMedia`, `videoMedia`) plus an insertion-order slice. `GET /products` reads only `meta` and the order slice and never touches the media maps, so listing 20 of 1,000 products serialises zero image URLs and stays O(limit).
 
-## Try It (reviewer walkthrough)
+## Curl commands
 
-A reviewer would create a product, list it, fetch it by id, then trip the rate limiter. Each block is copy-paste standalone.
 
 **macOS / Linux**
 
